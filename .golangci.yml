@@ -1,0 +1,374 @@
+version: '2'
+
+run:
+  timeout: 10m
+  modules-download-mode: readonly
+  allow-parallel-runners: true
+
+linters:
+  default: none
+  enable:
+    # Core linters
+    - errcheck # Checks for unchecked errors
+    - govet # Advanced static analysis for common mistakes
+    - ineffassign # Detects ineffective assignments
+    - staticcheck # Advanced Go static analysis
+    - unused # Checks for unused constants, variables, functions
+
+    # Security
+    - gosec # Security issues linter
+
+    # Style and formatting (non-formatters)
+    - misspell # Detects commonly misspelled words
+    # - whitespace   # Checks for unnecessary whitespace
+
+    # Complexity and maintainability
+    - funlen # Checks function length
+    # - gocyclo # Cyclomatic complexity
+    - cyclop # Checks function complexity
+    - gocognit # Cognitive complexity
+    - maintidx # Maintainability index
+
+    # Performance
+    - prealloc # Preallocates slices
+
+    # Bugs and best practices
+    - bodyclose # HTTP body close checks
+    - dupl # Code duplication
+    - forcetypeassert # Forced type assertions
+    - err113 # Error variable naming
+    - goconst # Magic number detection
+    - gocritic # Code quality checks
+    # - godot        # Comment checks
+    - mnd # Magic number detection
+    - gomoddirectives # Go module directives
+    - gomodguard # Module import restrictions
+    - goprintffuncname # Printf function names
+    - nolintlint # Nolint directive checks
+    - rowserrcheck # SQL rows error checks
+    - sqlclosecheck # SQL close checks
+    - unconvert # Unnecessary conversions
+    - unparam # Unnecessary parameters
+    - wastedassign # Wasted assignments
+
+    # Modern additions
+    - containedctx # Context in structs
+    - contextcheck # Context checks
+    - copyloopvar # Detects loop variable copying issues (Go 1.22+)
+    - durationcheck # Time duration checks
+    - errname # Error naming
+    - errorlint # Error handling
+    - exhaustive # Exhaustive switches
+    - forbidigo # Forbidden identifiers
+    - gocheckcompilerdirectives # Compiler directives
+    - gochecknoglobals # Global variables
+    - gochecknoinits # Init functions
+    - goheader # File headers
+    - gosmopolitan # Cosmopolitan code
+    - grouper # Import grouping
+    - importas # Import aliases
+    - interfacebloat # Interface complexity
+    - intrange # Suggests modern range-over-int syntax (Go 1.22+)
+    - ireturn # Interface returns
+    - loggercheck # Logger checks
+    - makezero # Zero value makes
+    - mirror # Mirror checks
+    - nakedret # Naked returns
+    - nestif # Nested ifs
+    - nilerr # Nil errors
+    - nilnil # Nil returns
+    - nlreturn # Newline returns
+    - noctx # No context
+    - nosprintfhostport # Sprintf host port
+    - paralleltest # Parallel tests
+    - predeclared # Predeclared identifiers
+    - promlinter # Prometheus metrics
+    - reassign # Variable reassignment
+    - revive # General purpose linter
+    - sloglint # log/slog best practices (Go 1.21+)
+    - tagliatelle # Struct tag naming
+    - testableexamples # Testable examples
+    - testifylint # testify best practices
+    - testpackage # Test package
+    - thelper # Test helpers
+    - tparallel # Test parallel
+    - usestdlibvars # Stdlib variables
+    - wrapcheck # Error wrapping
+    # - wsl_v5 # Whitespace linter
+
+    # Additional
+    - bidichk # Bidirectional character detection
+    - decorder # Declaration order
+    - lll # Line length limits
+    # - depguard     # Import restrictions
+
+  # Configure linters
+  settings:
+    # Security
+    gosec:
+      excludes:
+        - G104 # Ignore unhandled errors in specific contexts
+      config:
+        G306: '0644' # Write permissions for config files
+
+    # Complexity limits
+    funlen:
+      lines: 120
+      statements: 60
+
+    gocyclo:
+      min-complexity: 15
+
+    cyclop:
+      max-complexity: 15
+
+    gocognit:
+      min-complexity: 20
+
+    maintidx:
+      under: 40
+
+    # Code quality
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      settings:
+        rangeValCopy:
+          sizeThreshold: 32
+
+    # Magic numbers
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - operation
+        - return
+        - assign
+
+    # Module directives
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/kannancmohan
+
+    # Performance
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: false
+
+    # Modern linter settings
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+
+    exhaustive:
+      default-signifies-exhaustive: false
+
+    forbidigo:
+      forbid:
+        - pattern: ^print.*$ # Do not commit print statements
+
+    goheader:
+      values:
+        regexp:
+          copyright: kannancmohan
+      template: |-
+        Copyright {{.Year}} kannancmohan. All rights reserved.
+
+    importas:
+      alias:
+        - pkg: github.com/kannancmohan
+          alias: kannancmohan
+
+    interfacebloat:
+      max: 10
+
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+        - generic
+        - types
+
+    lll:
+      line-length: 160
+
+    nakedret:
+      max-func-lines: 30
+
+    nestif:
+      min-complexity: 4
+
+    nlreturn:
+      block-size: 3
+
+    predeclared:
+      ignore:
+        - ''
+
+    promlinter:
+      strict: false
+      disabled-linters:
+        - 'Help'
+        - 'MetricUnits'
+        - 'Counter'
+        - 'HistogramSummaryReserved'
+
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+          disabled: false
+          arguments:
+            - 'disableStutteringCheck'
+
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+
+    testpackage:
+      skip-regexp: (export|internal)_test\.go
+
+    thelper:
+      test:
+        first: true
+        name: true
+        begin: true
+      benchmark:
+        first: true
+        name: true
+        begin: true
+      tb:
+        first: true
+        name: true
+        begin: true
+
+    unparam:
+      check-exported: false
+
+    wrapcheck: {}
+
+    # wsl_v5:
+    #   allow-first-in-block: true
+    #   allow-whole-block: false
+    #   branch-max-lines: 2
+
+  exclusions:
+    paths:
+      - vendor
+      - testdata
+      - third_party
+      - .git
+      - node_modules
+      - .*\.pb\.go
+      - .*_generated\.go
+
+    rules:
+      # Exclude test files and e2e directories from certain linters
+      - path: (^.*/e2e/.*|.*_test\.go)$
+        linters:
+          - funlen
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+          - gocognit
+          - cyclop
+          - maintidx
+          - gocritic
+          - unparam
+          - prealloc
+          - paralleltest
+          - thelper
+          - tparallel
+          - forcetypeassert
+          - staticcheck
+          - err113
+          # - wsl_v5
+          - lll
+          - nlreturn
+          - wrapcheck
+          - revive
+          - mnd
+          - nestif
+          - unconvert
+          - tagliatelle
+
+      # Exclude generated files
+      - path: \.pb\.go$
+        linters:
+          - err113
+          - goconst
+          - gocritic
+          - gocyclo
+          - errcheck
+          - gosec
+          - dupl
+
+      # Exclude migration files
+      - path: migrations/
+        linters:
+          - err113
+          - goconst
+          - gocritic
+
+# Formatters for code style
+formatters:
+  enable:
+    - gci # Go Code Imports - organizes and formats import statements according to specified rules
+    - gofumpt # Stricter version of gofmt - enforces stricter formatting rules and removes unnecessary parentheses
+    - gofmt # Standard Go formatter - formats Go source code according to Go's standard formatting rules
+    - golines # Automatically wraps long lines to improve readability
+    # - goimports # Manages Go imports - adds missing imports, removes unused ones, and formats import statements
+
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/kannancmohan)
+      custom-order: true
+
+    gofmt:
+      simplify: true
+
+    gofumpt:
+      extra-rules: true
+
+    golines:
+      max-len: 160
+      shorten-comments: true
+      reformat-tags: true
+
+# Output configuration for CI and local development
+output:
+  formats:
+    text:
+      path: stdout
+      print-issued-lines: true
+      print-linter-name: true
+      colors: true
+  show-stats: true
+
+# Issue filtering and exclusions
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+
+# Severity configuration
+severity:
+  default: error

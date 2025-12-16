@@ -68,8 +68,9 @@
         default = pkgs.mkShell {
           buildInputs = [
             pkgs.go
-            pkgs.gopls
-            pkgs.delve
+            pkgs.golangci-lint
+            #pkgs.gopls
+            #pkgs.delve
             pkgs.uv
             (nodejs-18_20_4 pkgs)
           ];
