@@ -1,5 +1,7 @@
 # Global settings
 colors: true
+output:
+  - summary
 
 pre-commit:
   parallel: true
@@ -7,7 +9,7 @@ pre-commit:
     lint:
       run: golangci-lint run
     format:
-      run: go fmt ./...
+      run: golangci-lint fmt ./...
     test:
       run: go test ./...
     secrets:
