@@ -1,0 +1,26 @@
+# Global settings
+colors: true
+
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      run: golangci-lint run
+    format:
+      run: go fmt ./...
+    test:
+      run: go test ./...
+    secrets:
+      run: gitleaks protect --staged
+
+commit-msg:
+  commands:
+    commitlint:
+      run: commitlint --edit $1 --config .config/commitlint.config.mjs
+
+pre-push:
+  commands:
+    test:
+      run: go test ./...
+    secrets:
+      run: gitleaks protect

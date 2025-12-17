@@ -63,7 +63,7 @@ linters:
     - gocheckcompilerdirectives # Compiler directives
     - gochecknoglobals # Global variables
     - gochecknoinits # Init functions
-    - goheader # File headers
+    # - goheader # File headers
     - gosmopolitan # Cosmopolitan code
     - grouper # Import grouping
     - importas # Import aliases
@@ -178,12 +178,12 @@ linters:
       forbid:
         - pattern: ^print.*$ # Do not commit print statements
 
-    goheader:
-      values:
-        regexp:
-          copyright: kannancmohan
-      template: |-
-        Copyright {{.Year}} kannancmohan. All rights reserved.
+    # goheader:
+    #   values:
+    #     regexp:
+    #       copyright: kannancmohan
+    #   template: |-
+    #     Copyright {{.Year}} kannancmohan. All rights reserved.
 
     importas:
       alias:

@@ -71,8 +71,12 @@
             pkgs.golangci-lint
             #pkgs.gopls
             #pkgs.delve
-            pkgs.uv
-            (nodejs-18_20_4 pkgs)
+            pkgs.uv             # for installing spec-kit
+            pkgs.go-task        # alternate to makefile
+            pkgs.commitlint     # linter for commit messages
+            pkgs.lefthook       # git hooks manager
+            pkgs.gitleaks       # to detect hardcoded secrets in git commits
+            #(nodejs-18_20_4 pkgs)
           ];
 
           shellHook = ''
