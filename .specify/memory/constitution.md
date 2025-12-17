@@ -75,7 +75,7 @@ The library MUST achieve minimum 70% test coverage through comprehensive unit te
 **Rationale**: High test coverage ensures reliability and enables confident refactoring.
 
 ### X. Go Standards Compliance
-The library MUST follow Go best practices including effective Go guidelines, standard project layout, and idiomatic Go code. All code MUST pass golangci-lint with strict configuration and follow Go module conventions. Detailed style and formatting rules are documented in [docs/GOLANG_STYLE_GUIDE.md](docs/misc/style/GOLANG_STYLE_GUIDE.md)
+The library MUST follow Go best practices including effective Go guidelines, standard project layout, and idiomatic Go code. All code MUST pass golangci-lint with strict configuration and follow Go module conventions. Detailed style and formatting rules are documented in [docs/GOLANG_STYLE_GUIDE.md](docs/misc/style/GOLANG_STYLE_GUIDE.md) and project structure standards are defined in [docs/misc/style/PROJECT_STRUCTURE.md](docs/misc/style/PROJECT_STRUCTURE.md).
 
 **Rationale**: Ensures consistency with Go ecosystem expectations and maintainability.
 
