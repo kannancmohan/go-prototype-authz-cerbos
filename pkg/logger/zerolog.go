@@ -39,20 +39,25 @@ func createZerologLogger(opts Options) (Logger, error) {
 
 	// Configure output based on format
 	var output io.Writer
+	output = opts.Output
+	if output == nil {
+		output = os.Stdout
+	}
+
 	switch opts.Format {
 	case "console":
 		// Human-readable console output with colors and formatting
 		output = zerolog.ConsoleWriter{
-			Out:        os.Stdout,
+			Out:        output,
 			TimeFormat: time.RFC3339,
 			NoColor:    false,
 		}
 	case "json":
 		// Structured JSON output (zerolog's default format)
-		output = os.Stdout
+		// output is already set above
 	default:
 		// Fallback to JSON format
-		output = os.Stdout
+		// output is already set above
 	}
 
 	// Create base logger with timestamp and caller information
@@ -258,5 +263,5 @@ func (l *zerologLogger) With(args ...any) Logger {
 
 // Flush ensures buffered logs are written (zerolog has no buffer)
 func (l *zerologLogger) Flush() error {
-	return nil
+	return nil // Zerolog doesn't buffer
 }

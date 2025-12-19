@@ -46,10 +46,15 @@ func createSlogLogger(opts Options) (Logger, error) {
 	var output io.Writer
 	var handler slog.Handler
 
+	// Use custom output if provided, otherwise default to os.Stdout
+	output = opts.Output
+	if output == nil {
+		output = os.Stdout
+	}
+
 	switch opts.Format {
 	case "console":
 		// Human-readable console output
-		output = os.Stdout
 		handler = slog.NewTextHandler(output, &slog.HandlerOptions{
 			Level:     level,
 			AddSource: true,
@@ -66,14 +71,12 @@ func createSlogLogger(opts Options) (Logger, error) {
 		})
 	case "json":
 		// Structured JSON output
-		output = os.Stdout
 		handler = slog.NewJSONHandler(output, &slog.HandlerOptions{
 			Level:     level,
 			AddSource: true,
 		})
 	default:
 		// Fallback to JSON format
-		output = os.Stdout
 		handler = slog.NewJSONHandler(output, &slog.HandlerOptions{
 			Level:     level,
 			AddSource: true,
@@ -289,7 +292,7 @@ func (l *slogLogger) With(args ...any) Logger {
 
 // Flush ensures buffered logs are written (slog has no buffer)
 func (l *slogLogger) Flush() error {
-	return nil
+	return nil // slog doesn't buffer
 }
 
 // Helper function to convert attrs to args for slog

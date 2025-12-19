@@ -34,6 +34,7 @@ package logger
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 )
 
@@ -114,6 +115,7 @@ type Options struct {
 	Sampling         *SamplingConfig // Log sampling for high volume
 	GDPRFilterPII    bool            // Filter PII fields for GDPR compliance
 	PIIFields        []string        // Custom PII fields to filter (e.g., "password", "ssn", "email")
+	Output           io.Writer       // Custom output writer (defaults to os.Stdout if nil)
 }
 
 // SamplingConfig prevents log spam in high-volume scenarios by
