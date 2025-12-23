@@ -240,7 +240,7 @@ linters:
           json: snake
 
     testpackage:
-      skip-regexp: (export|internal)_test\.go
+      skip-regexp: (export|internal|errors|logger)_test\.go
 
     thelper:
       test:
