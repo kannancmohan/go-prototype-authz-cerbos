@@ -10,10 +10,10 @@
       overlays = [
         (self: super: {
           go = super.go.overrideAttrs (old: rec {
-            version = "1.25.2";
+            version = "1.25.4";
             src = super.fetchurl {
               url = "https://go.dev/dl/go${version}.src.tar.gz";
-              sha256 = "3711140cfb87fce8f7a13f7cd860df041e6c12f7610f40cac6ec6fa2b65e96e4";
+              sha256 = "160043b7f17b6d60b50369436917fda8d5034640ba39ae2431c6b95a889cc98c";
             };
           });
         })

@@ -1,6 +1,6 @@
 module github.com/kannancmohan/go-prototype-authz-cerbos
 
-go 1.25.2
+go 1.25.4
 
 require (
 	github.com/rs/zerolog v1.34.0
