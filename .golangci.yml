@@ -202,6 +202,7 @@ linters:
         - stdlib
         - generic
         - types
+        - Logger
 
     lll:
       line-length: 160

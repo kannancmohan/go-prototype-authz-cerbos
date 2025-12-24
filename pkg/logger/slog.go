@@ -22,7 +22,7 @@ type slogLogger struct {
 }
 
 // createSlogLogger creates a new slog logger with comprehensive configuration support
-func createSlogLogger(opts Options) (Logger, error) {
+func createSlogLogger(opts *Options) (Logger, error) {
 	// Validate configuration
 	if err := validateOptions(opts); err != nil {
 		return nil, errors.Wrap(err, errors.ErrCodeValidation, "invalid options")
@@ -31,15 +31,15 @@ func createSlogLogger(opts Options) (Logger, error) {
 	// Parse log level
 	var level slog.Level
 	switch opts.Level {
-	case "debug":
+	case LevelDebug:
 		level = slog.LevelDebug
-	case "info":
+	case LevelInfo:
 		level = slog.LevelInfo
-	case "warn":
+	case LevelWarn:
 		level = slog.LevelWarn
-	case "error":
+	case LevelError:
 		level = slog.LevelError
-	case "fatal":
+	case LevelFatal:
 		level = slog.LevelError // slog doesn't have fatal level, map to error
 	default:
 		level = slog.LevelInfo
@@ -69,6 +69,7 @@ func createSlogLogger(opts Options) (Logger, error) {
 						Value: slog.StringValue(time.Now().Format(time.RFC3339)),
 					}
 				}
+
 				return a
 			},
 		})
@@ -99,7 +100,7 @@ func createSlogLogger(opts Options) (Logger, error) {
 	// Create base logger
 	logger := slog.New(handler)
 
-	return &slogLogger{logger: logger, opts: opts}, nil
+	return &slogLogger{logger: logger, opts: *opts}, nil
 }
 
 // isPIIField checks if a field contains personally identifiable information
@@ -121,7 +122,7 @@ func (l *slogLogger) filterPII(args ...any) []any {
 	}
 
 	filtered := make([]any, 0, len(args))
-	for i := 0; i < len(args); i += 2 {
+	for i := 0; i < len(args); i += argsPerAttr {
 		if i+1 < len(args) {
 			key := fmt.Sprintf("%v", args[i])
 			if !l.isPIIField(key) {
@@ -129,24 +130,26 @@ func (l *slogLogger) filterPII(args ...any) []any {
 			}
 		}
 	}
+
 	return filtered
 }
 
 // convertArgsToAttrs converts key-value pairs to slog attributes
 func convertArgsToAttrs(args ...any) []slog.Attr {
-	if len(args)%2 != 0 {
+	if len(args)%argsPerAttr != 0 {
 		// If odd number of args, treat the last one as a message
 		return []slog.Attr{slog.String("message", fmt.Sprintf("%v", args[len(args)-1]))}
 	}
 
-	attrs := make([]slog.Attr, 0, len(args)/2)
-	for i := 0; i < len(args); i += 2 {
+	attrs := make([]slog.Attr, 0, len(args)/argsPerAttr)
+	for i := 0; i < len(args); i += argsPerAttr {
 		if i+1 < len(args) {
 			key := fmt.Sprintf("%v", args[i])
 			value := args[i+1]
 			attrs = append(attrs, slog.Any(key, value))
 		}
 	}
+
 	return attrs
 }
 
@@ -222,11 +225,13 @@ func (l *slogLogger) logErrorInternal(ctx context.Context, err error, msg string
 		logger = l.logger
 	}
 	stack := fmt.Sprintf("%+v", err)
-	if appErr, ok := err.(*errors.Error); ok {
+	var appErr *errors.Error
+	if e, ok := errors.AsError(err); ok {
+		appErr = e
 		stack = appErr.StackTrace()
 	}
 	extraFields := []any{"error", err, "stack", stack}
-	if appErr, ok := err.(*errors.Error); ok {
+	if appErr != nil {
 		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
 		for k, v := range appErr.Metadata() {
 			extraFields = append(extraFields, k, v)
@@ -313,10 +318,12 @@ func (l *slogLogger) Flush() error {
 
 // Helper function to convert attrs to args for slog
 func attrsToArgs(attrs []slog.Attr) []any {
-	args := make([]any, 0, len(attrs)*2)
-	for _, attr := range attrs {
+	args := make([]any, 0, len(attrs)*argsPerAttr)
+	for i := range attrs {
+		attr := &attrs[i]
 		args = append(args, attr.Key, attr.Value.Any())
 	}
+
 	return args
 }
 
@@ -335,7 +342,7 @@ func (h *samplingHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 // Handle processes the log record with sampling
-func (h *samplingHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *samplingHandler) Handle(ctx context.Context, r slog.Record) error { //nolint:gocritic
 	key := fmt.Sprintf("%s:%s", r.Level, r.Message)
 	h.mu.Lock()
 	count := h.counts[key]
@@ -346,6 +353,7 @@ func (h *samplingHandler) Handle(ctx context.Context, r slog.Record) error {
 	if count <= h.initial || (count-h.initial)%h.thereafter == 0 {
 		return h.handler.Handle(ctx, r)
 	}
+
 	return nil
 }
 

@@ -21,7 +21,7 @@ type zerologLogger struct {
 }
 
 // createZerologLogger creates a new zerolog logger with comprehensive configuration support
-func createZerologLogger(opts Options) (Logger, error) {
+func createZerologLogger(opts *Options) (Logger, error) {
 	// Validate configuration
 	if err := validateOptions(opts); err != nil {
 		return nil, errors.Wrap(err, errors.ErrCodeValidation, "invalid options")
@@ -30,13 +30,13 @@ func createZerologLogger(opts Options) (Logger, error) {
 	// Parse log level
 	level := zerolog.InfoLevel
 	switch opts.Level {
-	case "debug":
+	case LevelDebug:
 		level = zerolog.DebugLevel
-	case "warn":
+	case LevelWarn:
 		level = zerolog.WarnLevel
-	case "error":
+	case LevelError:
 		level = zerolog.ErrorLevel
-	case "fatal":
+	case LevelFatal:
 		level = zerolog.FatalLevel
 	}
 
@@ -80,12 +80,12 @@ func createZerologLogger(opts Options) (Logger, error) {
 		})
 	}
 
-	return &zerologLogger{logger: zl, opts: opts}, nil
+	return &zerologLogger{logger: zl, opts: *opts}, nil
 }
 
 // validateOptions validates logger configuration options
-func validateOptions(opts Options) error {
-	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true, "fatal": true}
+func validateOptions(opts *Options) error {
+	validLevels := map[string]bool{LevelDebug: true, LevelInfo: true, LevelWarn: true, LevelError: true, LevelFatal: true}
 	if !validLevels[opts.Level] {
 		return errors.ValidationError(fmt.Sprintf("invalid log level: %s", opts.Level))
 	}
@@ -123,7 +123,7 @@ func (l *zerologLogger) filterPII(args ...any) []any {
 	}
 
 	filtered := make([]any, 0, len(args))
-	for i := 0; i < len(args); i += 2 {
+	for i := 0; i < len(args); i += argsPerAttr {
 		if i+1 < len(args) {
 			key := fmt.Sprintf("%v", args[i])
 			if !l.isPIIField(key) {
@@ -131,6 +131,7 @@ func (l *zerologLogger) filterPII(args ...any) []any {
 			}
 		}
 	}
+
 	return filtered
 }
 
@@ -189,7 +190,7 @@ func (l *zerologLogger) ErrorCtxWithErr(ctx context.Context, err error, msg stri
 	filteredArgs := l.filterPII(args...)
 	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Error().Err(err).Stack() //nolint:forcetypeassert // FromContext returns *zerologLogger
 	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := err.(*errors.Error); ok {
+	if appErr, ok := errors.AsError(err); ok {
 		logEvent = logEvent.Str("error_code", string(appErr.Code)).
 			Str("severity", string(appErr.Severity))
 		for k, v := range appErr.Metadata() {
@@ -204,7 +205,7 @@ func (l *zerologLogger) FatalCtxWithErr(ctx context.Context, err error, msg stri
 	filteredArgs := l.filterPII(args...)
 	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Fatal().Err(err).Stack() //nolint:forcetypeassert // FromContext returns *zerologLogger
 	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := err.(*errors.Error); ok {
+	if appErr, ok := errors.AsError(err); ok {
 		logEvent = logEvent.Str("error_code", string(appErr.Code)).
 			Str("severity", string(appErr.Severity))
 		for k, v := range appErr.Metadata() {
@@ -245,7 +246,7 @@ func (l *zerologLogger) ErrorWithErr(err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	logEvent := l.logger.Error().Err(err).Stack()
 	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := err.(*errors.Error); ok {
+	if appErr, ok := errors.AsError(err); ok {
 		logEvent = logEvent.Str("error_code", string(appErr.Code)).
 			Str("severity", string(appErr.Severity))
 		for k, v := range appErr.Metadata() {
@@ -260,7 +261,7 @@ func (l *zerologLogger) FatalWithErr(err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	logEvent := l.logger.Fatal().Err(err).Stack()
 	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := err.(*errors.Error); ok {
+	if appErr, ok := errors.AsError(err); ok {
 		logEvent = logEvent.Str("error_code", string(appErr.Code)).
 			Str("severity", string(appErr.Severity))
 		for k, v := range appErr.Metadata() {

@@ -34,7 +34,6 @@ package logger
 import (
 	"context"
 	"io"
-	"sync"
 
 	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 )
@@ -50,19 +49,32 @@ const (
 	FatalLevel
 )
 
+// String constants for log levels (used in configuration and parsing)
+const (
+	LevelDebug = "debug"
+	LevelInfo  = "info"
+	LevelWarn  = "warn"
+	LevelError = "error"
+	LevelFatal = "fatal"
+)
+
+// argsPerAttr defines the number of arguments per attribute in key-value logging.
+// Each attribute consists of a key and a value, hence 2.
+const argsPerAttr = 2
+
 // String returns the string representation of the log level
 func (l Level) String() string {
 	switch l {
 	case DebugLevel:
-		return "debug"
+		return LevelDebug
 	case InfoLevel:
-		return "info"
+		return LevelInfo
 	case WarnLevel:
-		return "warn"
+		return LevelWarn
 	case ErrorLevel:
-		return "error"
+		return LevelError
 	case FatalLevel:
-		return "fatal"
+		return LevelFatal
 	default:
 		return "unknown"
 	}
@@ -127,14 +139,13 @@ type SamplingConfig struct {
 }
 
 // Factory creates logger instances with different implementations.
-// It provides a thread-safe way to create loggers with consistent configuration.
+// It is immutable and safe for concurrent use.
 type Factory struct {
-	opts Options
-	mu   sync.Mutex
+	opts *Options
 }
 
 // NewFactory creates a new logger factory with the specified options.
-func NewFactory(opts Options) *Factory {
+func NewFactory(opts *Options) *Factory {
 	return &Factory{opts: opts}
 }
 
@@ -154,7 +165,7 @@ func (f *Factory) Create(impl string) (Logger, error) {
 }
 
 // newZapLogger creates a new zap-based logger (placeholder for future implementation)
-func newZapLogger(opts Options) Logger {
+func newZapLogger(opts *Options) Logger {
 	// TODO: Implement zap logger
 	return nil
 }

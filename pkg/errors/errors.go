@@ -298,3 +298,13 @@ func (e *Error) WithSeverity(severity Severity) *Error {
 		cause:    e.cause,
 	}
 }
+
+// AsError returns the *Error if err is or wraps an *Error.
+func AsError(err error) (*Error, bool) {
+	var e *Error
+	if errors.As(err, &e) {
+		return e, true
+	}
+	
+	return nil, false
+}

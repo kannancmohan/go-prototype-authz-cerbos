@@ -89,7 +89,7 @@ func TestLoggerImplementations(t *testing.T) {
 					Format: "json",
 					Output: output,
 				}
-				factory := NewFactory(opts)
+				factory := NewFactory(&opts)
 				logger, err := factory.Create(impl)
 				if err != nil {
 					t.Fatalf("Failed to create %s logger: %v", impl, err)
@@ -114,7 +114,7 @@ func TestLoggerImplementations(t *testing.T) {
 					ExtractTraceInfo: true,
 					Output:           output,
 				}
-				factory := NewFactory(opts)
+				factory := NewFactory(&opts)
 				logger, err := factory.Create(impl)
 				if err != nil {
 					t.Fatalf("Failed to create %s logger: %v", impl, err)
@@ -139,7 +139,7 @@ func TestLoggerImplementations(t *testing.T) {
 					PIIFields:     []string{"password", "email", "ssn"},
 					Output:        output,
 				}
-				factory := NewFactory(opts)
+				factory := NewFactory(&opts)
 				logger, err := factory.Create(impl)
 				if err != nil {
 					t.Fatalf("Failed to create %s logger: %v", impl, err)
@@ -160,7 +160,7 @@ func TestLoggerImplementations(t *testing.T) {
 					Format: "json",
 					Output: output,
 				}
-				factory := NewFactory(opts)
+				factory := NewFactory(&opts)
 				logger, err := factory.Create(impl)
 				if err != nil {
 					t.Fatalf("Failed to create %s logger: %v", impl, err)
@@ -182,7 +182,7 @@ func TestLoggerImplementations(t *testing.T) {
 					Format: "json",
 					Output: output,
 				}
-				factory := NewFactory(opts)
+				factory := NewFactory(&opts)
 				logger, err := factory.Create(impl)
 				if err != nil {
 					t.Fatalf("Failed to create %s logger: %v", impl, err)
@@ -208,7 +208,7 @@ func TestLoggerImplementations(t *testing.T) {
 					},
 					Output: output,
 				}
-				factory := NewFactory(opts)
+				factory := NewFactory(&opts)
 				logger, err := factory.Create(impl)
 				if err != nil {
 					t.Fatalf("Failed to create %s logger: %v", impl, err)
@@ -233,7 +233,7 @@ func TestLoggerImplementations(t *testing.T) {
 					ContextKeys: []string{"request_id", "user_id"},
 					Output:      output,
 				}
-				factory := NewFactory(opts)
+				factory := NewFactory(&opts)
 				logger, err := factory.Create(impl)
 				if err != nil {
 					t.Fatalf("Failed to create %s logger: %v", impl, err)
@@ -425,7 +425,7 @@ func TestLoggerLevelFiltering(t *testing.T) {
 						Format: "json",
 						Output: output,
 					}
-					factory := NewFactory(opts)
+					factory := NewFactory(&opts)
 					logger, err := factory.Create(impl)
 					if err != nil {
 						t.Fatalf("Failed to create logger: %v", err)
@@ -498,7 +498,7 @@ func TestContextAwareLogging(t *testing.T) {
 						Format: "json",
 						Output: output,
 					}
-					factory := NewFactory(opts)
+					factory := NewFactory(&opts)
 					logger, err := factory.Create(impl)
 					if err != nil {
 						t.Fatalf("Failed to create logger: %v", err)
@@ -568,7 +568,7 @@ func TestErrorWithErr(t *testing.T) {
 						Format: "json",
 						Output: output,
 					}
-					factory := NewFactory(opts)
+					factory := NewFactory(&opts)
 					logger, err := factory.Create(impl)
 					if err != nil {
 						t.Fatalf("Failed to create logger: %v", err)
@@ -639,7 +639,7 @@ func TestLoggerCreationErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			factory := NewFactory(tt.opts)
+			factory := NewFactory(&tt.opts)
 			_, err := factory.Create(tt.impl)
 
 			if tt.expectError && err == nil {
@@ -664,7 +664,7 @@ func TestLoggerWithNilContext(t *testing.T) {
 				Format: "json",
 				Output: output,
 			}
-			factory := NewFactory(opts)
+			factory := NewFactory(&opts)
 			logger, err := factory.Create(impl)
 			if err != nil {
 				t.Fatalf("Failed to create logger: %v", err)
@@ -703,7 +703,7 @@ func TestLoggerWithEmptyFields(t *testing.T) {
 				Format: "json",
 				Output: output,
 			}
-			factory := NewFactory(opts)
+			factory := NewFactory(&opts)
 			logger, err := factory.Create(impl)
 			if err != nil {
 				t.Fatalf("Failed to create logger: %v", err)
@@ -787,7 +787,7 @@ func TestSamplingHandler(t *testing.T) {
 	}
 
 	// Test with slog implementation
-	factory := NewFactory(opts)
+	factory := NewFactory(&opts)
 	logger, err := factory.Create("slog")
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -842,7 +842,7 @@ func TestNewZapLogger(t *testing.T) {
 	}
 
 	// Test that newZapLogger returns nil (placeholder implementation)
-	logger := newZapLogger(opts)
+	logger := newZapLogger(&opts)
 	if logger != nil {
 		t.Error("Expected newZapLogger to return nil (placeholder), got non-nil logger")
 	}
