@@ -210,36 +210,38 @@ func (l *slogLogger) FatalCtx(ctx context.Context, msg string, args ...any) {
 	os.Exit(1)
 }
 
-// ErrorCtxWithErr logs an error with stack trace and additional fields (context-aware)
-func (l *slogLogger) ErrorCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
+// logErrorInternal handles common error logging logic for both context and non-context scenarios.
+func (l *slogLogger) logErrorInternal(ctx context.Context, err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
-	logger := l.FromContext(ctx).(*slogLogger).logger
+	var logger *slog.Logger
+	if ctx != nil {
+		logger = l.FromContext(ctx).(*slogLogger).logger
+	} else {
+		logger = l.logger
+	}
 	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
-	// If it's a structured error, add metadata, code, and severity
 	if appErr, ok := err.(*errors.Error); ok {
 		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
 		for k, v := range appErr.Metadata() {
 			extraFields = append(extraFields, k, v)
 		}
 	}
-	logger.ErrorContext(ctx, msg, append(extraFields, attrsToArgs(attrs)...)...)
+	if ctx != nil {
+		logger.ErrorContext(ctx, msg, append(extraFields, attrsToArgs(attrs)...)...)
+	} else {
+		logger.Error(msg, append(extraFields, attrsToArgs(attrs)...)...)
+	}
+}
+
+// ErrorCtxWithErr logs an error with stack trace and additional fields (context-aware)
+func (l *slogLogger) ErrorCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
+	l.logErrorInternal(ctx, err, msg, args...)
 }
 
 // FatalCtxWithErr logs a fatal error with stack trace and additional fields (context-aware)
 func (l *slogLogger) FatalCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
-	filteredArgs := l.filterPII(args...)
-	attrs := convertArgsToAttrs(filteredArgs...)
-	logger := l.FromContext(ctx).(*slogLogger).logger
-	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
-	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := err.(*errors.Error); ok {
-		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
-		for k, v := range appErr.Metadata() {
-			extraFields = append(extraFields, k, v)
-		}
-	}
-	logger.ErrorContext(ctx, msg, append(extraFields, attrsToArgs(attrs)...)...)
+	l.logErrorInternal(ctx, err, msg, args...)
 	// slog doesn't have fatal, so we exit after logging
 	os.Exit(1)
 }
@@ -279,32 +281,12 @@ func (l *slogLogger) Fatal(msg string, args ...any) {
 
 // ErrorWithErr logs an error with stack trace and additional fields (context-free)
 func (l *slogLogger) ErrorWithErr(err error, msg string, args ...any) {
-	filteredArgs := l.filterPII(args...)
-	attrs := convertArgsToAttrs(filteredArgs...)
-	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
-	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := err.(*errors.Error); ok {
-		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
-		for k, v := range appErr.Metadata() {
-			extraFields = append(extraFields, k, v)
-		}
-	}
-	l.logger.Error(msg, append(extraFields, attrsToArgs(attrs)...)...)
+	l.logErrorInternal(nil, err, msg, args...)
 }
 
 // FatalWithErr logs a fatal error with stack trace and additional fields (context-free)
 func (l *slogLogger) FatalWithErr(err error, msg string, args ...any) {
-	filteredArgs := l.filterPII(args...)
-	attrs := convertArgsToAttrs(filteredArgs...)
-	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
-	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := err.(*errors.Error); ok {
-		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
-		for k, v := range appErr.Metadata() {
-			extraFields = append(extraFields, k, v)
-		}
-	}
-	l.logger.Error(msg, append(extraFields, attrsToArgs(attrs)...)...)
+	l.logErrorInternal(nil, err, msg, args...)
 	// slog doesn't have fatal, so we exit after logging
 	os.Exit(1)
 }
