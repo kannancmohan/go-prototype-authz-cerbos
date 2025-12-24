@@ -4,7 +4,7 @@ A production-ready error handling package that wraps `github.com/cockroachdb/err
 
 ## Overview
 
-This package follows the same wrapper pattern as [`pkg/logger`](../logger), providing a clean, domain-specific API while leveraging battle-tested error handling capabilities from cockroachdb/errors.
+ providing a clean, domain-specific API while leveraging battle-tested error handling capabilities from cockroachdb/errors.
 
 ## Package Structure
 
@@ -34,29 +34,15 @@ This package follows the same wrapper pattern as [`pkg/logger`](../logger), prov
 
 **When to use**: Import when you need to create specific types of errors or check error types.
 
-### [`logger.go`](logger.go) - Logger Integration
-**Purpose**: Seamlessly integrates errors with the existing logger package
-
-**Key Components**:
-- `Log()` method for fluent logging
-- `LogCtx()` method for context-aware logging
-- Helper functions: `LogError()`, `LogErrorCtx()`, `LogErrorFields()`
-- Automatic metadata extraction for log fields
-- Severity to log level mapping
-
-**When to use**: Import when you need to log errors with structured metadata.
-
 ### [`http.go`](http.go) - HTTP Response Helpers
-**Purpose**: Handles HTTP error responses and middleware
+**Purpose**: Handles HTTP error responses
 
 **Key Components**:
 - `WriteHTTPResponse()` - writes errors as JSON HTTP responses
 - `WriteHTTPResponseWithStatus()` - custom status code responses
-- HTTP middleware with error recovery (`HTTPMiddleware()`, `RecoveryMiddleware()`)
-- `CombinedMiddleware()` - error recovery + logging
 - `JSONError()` and `JSONErrorWithDetails()` convenience functions
 
-**When to use**: Import in HTTP handlers and middleware for API error responses.
+**When to use**: Import in HTTP handlers for API error responses.
 
 ## Quick Start
 
@@ -144,9 +130,6 @@ warningErr := errors.ValidationError("deprecated field").
 infoErr := errors.New(errors.ErrCodeInternal, "maintenance mode").
     WithSeverity(errors.SeverityInfo)
 
-// Severity affects logging level
-warningErr.Log(log) // Logs as WARN
-infoErr.Log(log)    // Logs as INFO
 ```
 
 ### Stack Traces
@@ -163,44 +146,6 @@ wrappedStack := wrapped.StackTrace()
 // Contains full stack from original error creation
 ```
 
-### Logging Errors
-
-```go
-import "github.com/kannancmohan/go-prototype-authz-cerbos/pkg/logger"
-
-// Create logger
-log, _ := logger.NewFactory(logger.Options{
-    Level:  "info",
-    Format: "json",
-}).Create("zerolog")
-
-// Log error with automatic metadata extraction
-err := errors.NotFoundError("user").
-    WithMetadata("user_id", 123).
-    WithMetadata("resource", "profile")
-
-err.Log(log)
-// Output includes: error_code=NOT_FOUND, severity=error, user_id=123, resource=profile
-
-// Context-aware logging
-err.LogCtx(ctx, log)
-// Also logs trace_id, span_id, request_id from context
-
-// Helper functions for standard errors
-errors.LogError(log, err, "operation failed")
-errors.LogErrorCtx(ctx, log, err, "operation failed")
-errors.LogErrorFields(log, err, "operation failed", map[string]any{
-    "additional": "field",
-})
-
-// Convert to logger fields for custom logging
-fields := err.ToLoggerFields()
-// Returns []any{"user_id", 123, "resource", "profile", "error_code", "NOT_FOUND", "severity", "error"}
-
-// String representation for simple logging
-str := err.String()
-// Returns "[NOT_FOUND] user not found (metadata: map[...])"
-```
 
 ### HTTP Error Responses
 
@@ -224,9 +169,6 @@ errors.WriteHTTPResponseWithStatus(w, err, http.StatusBadRequest)
 errors.JSONError(w, errors.ErrCodeNotFound, "user not found", http.StatusNotFound)
 errors.JSONErrorWithDetails(w, errors.ErrCodeValidation, "validation failed",
     map[string]any{"field": "email"}, http.StatusBadRequest)
-
-// Error handler convenience
-errors.ErrorHandler(w, r, err) // Adds context and logs automatically
 ```
 
 ### Error Type Checking
@@ -324,8 +266,7 @@ func (s *UserService) GetUser(ctx context.Context, id int64) (*User, error) {
         return nil, errors.Wrap(err, errors.ErrCodeInternal, "failed to fetch user").
             WithMetadata("user_id", id).
             WithMetadata("operation", "GetUser").
-            WithContext(ctx).
-            Log(s.logger) // Log immediately with context
+            WithContext(ctx)
     }
     
     if user == nil {
@@ -365,28 +306,18 @@ func (s *UserService) CreateUser(ctx context.Context, user *User) error {
 }
 ```
 
-### Pattern 2: HTTP Handler with Comprehensive Error Middleware
+### Pattern 2: HTTP Handler with Error Handling
 
 ```go
 func main() {
-    // Create logger
-    log, _ := logger.NewFactory(logger.Options{
-        Level:  "info",
-        Format: "json",
-    }).Create("zerolog")
-    
-    // Create router with error handling middleware
+    // Create router
     mux := http.NewServeMux()
-    
-    // Apply combined middleware (error recovery + logging)
-    // Handles panics, adds default error responses, and logs everything
-    handler := errors.CombinedMiddleware(log)(mux)
     
     mux.HandleFunc("/users/", handleGetUser)
     mux.HandleFunc("/users/create", handleCreateUser)
     mux.HandleFunc("/external/call", handleExternalCall)
     
-    http.ListenAndServe(":8080", handler)
+    http.ListenAndServe(":8080", mux)
 }
 
 func handleGetUser(w http.ResponseWriter, r *http.Request) {
@@ -400,7 +331,6 @@ func handleGetUser(w http.ResponseWriter, r *http.Request) {
     
     user, err := userService.GetUser(r.Context(), userID)
     if err != nil {
-        // Middleware will handle logging
         errors.WriteHTTPResponse(w, err)
         return
     }
@@ -823,9 +753,8 @@ This package wraps [`github.com/cockroachdb/errors`](https://github.com/cockroac
 3. **Structured Metadata**: Type-safe with immutability, prevents accidental modification
 4. **OpenTelemetry Ready**: Automatic trace/span correlation
 5. **HTTP Integration**: Proper status code mapping and JSON response formatting
-6. **Logger Integration**: Seamless metadata extraction and structured logging
-7. **Thread-Safe**: All error modifications return new instances
-8. **Performance**: <5% overhead compared to raw cockroachdb/errors
+6. **Thread-Safe**: All error modifications return new instances
+7. **Performance**: <5% overhead compared to raw cockroachdb/errors
 
 ## Error Flow Example
 
@@ -839,10 +768,7 @@ This package wraps [`github.com/cockroachdb/errors`](https://github.com/cockroac
 3. Context Addition
    .WithContext(ctx) → Adds trace_id, span_id, request_id from context
 
-4. Logging
-   .Log(logger) → Logs with all metadata as structured fields
-
-5. HTTP Response
+4. HTTP Response
    errors.WriteHTTPResponse(w, err) → JSON response with correct status code
 ```
 
@@ -851,15 +777,13 @@ This package wraps [`github.com/cockroachdb/errors`](https://github.com/cockroac
 1. **Always use constructors**: Use `NotFoundError()`, `ValidationError()`, etc. instead of `New()`
 2. **Add context early**: Call `WithContext()` as soon as you have a context available
 3. **Include relevant metadata**: Add user IDs, resource IDs, query parameters
-4. **Log errors once**: Use `.Log()` or helper functions, avoid duplicate logging
-5. **Check error types**: Use `IsNotFound()`, `IsValidation()` for type checking
-6. **Wrap external errors**: Use `Wrap()` to preserve stack traces from external calls
+4. **Check error types**: Use `IsNotFound()`, `IsValidation()` for type checking
+5. **Wrap external errors**: Use `Wrap()` to preserve stack traces from external calls
 
 ## Dependencies
 
 - `github.com/cockroachdb/errors` - Core error handling with stack traces
 - `go.opentelemetry.io/otel/trace` - OpenTelemetry integration
-- `github.com/kannancmohan/go-prototype-authz-cerbos/pkg/logger` - Logger integration
 
 ## Performance
 

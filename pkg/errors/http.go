@@ -135,45 +135,6 @@ func WriteHTTPResponseWithStatus(w http.ResponseWriter, err error, statusCode in
 	}
 }
 
-// HTTPMiddleware creates an HTTP middleware that automatically handles errors
-func HTTPMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Create a custom response writer to capture status code
-		crw := &captureResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-
-		// Process the request
-		next.ServeHTTP(crw, r)
-
-		// Note: If the status code indicates an error and no body was written,
-		// you might want to add default error handling here if needed
-		// For now, we just capture the status code for observability
-	})
-}
-
-// captureResponseWriter wraps http.ResponseWriter to capture status code and body size
-type captureResponseWriter struct {
-	http.ResponseWriter
-	statusCode  int
-	bodyWritten int
-}
-
-// WriteHeader captures the status code
-func (crw *captureResponseWriter) WriteHeader(statusCode int) {
-	crw.statusCode = statusCode
-	crw.ResponseWriter.WriteHeader(statusCode)
-}
-
-// Write captures the body size
-func (crw *captureResponseWriter) Write(b []byte) (int, error) {
-	size, err := crw.ResponseWriter.Write(b)
-	crw.bodyWritten += size
-	if err != nil {
-		return size, fmt.Errorf("response write failed after %d bytes: %w", size, err)
-	}
-
-	return size, nil
-}
-
 // JSONError creates a properly formatted JSON error response
 func JSONError(w http.ResponseWriter, code ErrorCode, message string, statusCode int) {
 	err := New(code, message)
