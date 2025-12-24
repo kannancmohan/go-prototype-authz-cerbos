@@ -8,9 +8,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 )
 
 // zerologLogger implements the Logger interface using zerolog
@@ -23,7 +24,7 @@ type zerologLogger struct {
 func createZerologLogger(opts Options) (Logger, error) {
 	// Validate configuration
 	if err := validateOptions(opts); err != nil {
-		return nil, fmt.Errorf("invalid options: %w", err)
+		return nil, errors.Wrap(err, errors.ErrCodeValidation, "invalid options")
 	}
 
 	// Parse log level
@@ -86,17 +87,17 @@ func createZerologLogger(opts Options) (Logger, error) {
 func validateOptions(opts Options) error {
 	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true, "fatal": true}
 	if !validLevels[opts.Level] {
-		return fmt.Errorf("invalid log level: %s", opts.Level)
+		return errors.ValidationError(fmt.Sprintf("invalid log level: %s", opts.Level))
 	}
 
 	validFormats := map[string]bool{"json": true, "console": true}
 	if !validFormats[opts.Format] {
-		return fmt.Errorf("invalid format: %s", opts.Format)
+		return errors.ValidationError(fmt.Sprintf("invalid format: %s", opts.Format))
 	}
 
 	if opts.Sampling != nil {
 		if opts.Sampling.Initial < 0 || opts.Sampling.Thereafter <= 0 {
-			return fmt.Errorf("invalid sampling configuration")
+			return errors.ValidationError("invalid sampling configuration")
 		}
 	}
 
@@ -160,33 +161,33 @@ func (l *zerologLogger) FromContext(ctx context.Context) Logger {
 // Context-aware logging methods with error wrapping support
 func (l *zerologLogger) DebugCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.FromContext(ctx).(*zerologLogger).logger.Debug().Fields(filteredArgs).Msg(msg)
+	l.FromContext(ctx).(*zerologLogger).logger.Debug().Fields(filteredArgs).Msg(msg) //nolint:forcetypeassert // FromContext returns *zerologLogger
 }
 
 func (l *zerologLogger) InfoCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.FromContext(ctx).(*zerologLogger).logger.Info().Fields(filteredArgs).Msg(msg)
+	l.FromContext(ctx).(*zerologLogger).logger.Info().Fields(filteredArgs).Msg(msg) //nolint:forcetypeassert // FromContext returns *zerologLogger
 }
 
 func (l *zerologLogger) WarnCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.FromContext(ctx).(*zerologLogger).logger.Warn().Fields(filteredArgs).Msg(msg)
+	l.FromContext(ctx).(*zerologLogger).logger.Warn().Fields(filteredArgs).Msg(msg) //nolint:forcetypeassert // FromContext returns *zerologLogger
 }
 
 func (l *zerologLogger) ErrorCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.FromContext(ctx).(*zerologLogger).logger.Error().Fields(filteredArgs).Msg(msg)
+	l.FromContext(ctx).(*zerologLogger).logger.Error().Fields(filteredArgs).Msg(msg) //nolint:forcetypeassert // FromContext returns *zerologLogger
 }
 
 func (l *zerologLogger) FatalCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.FromContext(ctx).(*zerologLogger).logger.Fatal().Fields(filteredArgs).Msg(msg)
+	l.FromContext(ctx).(*zerologLogger).logger.Fatal().Fields(filteredArgs).Msg(msg) //nolint:forcetypeassert // FromContext returns *zerologLogger
 }
 
 // ErrorCtxWithErr logs an error with stack trace and additional fields (context-aware)
 func (l *zerologLogger) ErrorCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Error().Err(err).Stack()
+	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Error().Err(err).Stack() //nolint:forcetypeassert // FromContext returns *zerologLogger
 	// If it's a structured error, add metadata, code, and severity
 	if appErr, ok := err.(*errors.Error); ok {
 		logEvent = logEvent.Str("error_code", string(appErr.Code)).
@@ -201,7 +202,7 @@ func (l *zerologLogger) ErrorCtxWithErr(ctx context.Context, err error, msg stri
 // FatalCtxWithErr logs a fatal error with stack trace and additional fields (context-aware)
 func (l *zerologLogger) FatalCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Fatal().Err(err).Stack()
+	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Fatal().Err(err).Stack() //nolint:forcetypeassert // FromContext returns *zerologLogger
 	// If it's a structured error, add metadata, code, and severity
 	if appErr, ok := err.(*errors.Error); ok {
 		logEvent = logEvent.Str("error_code", string(appErr.Code)).

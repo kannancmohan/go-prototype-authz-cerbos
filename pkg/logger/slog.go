@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 )
 
 // slogLogger implements the Logger interface using slog
@@ -24,7 +25,7 @@ type slogLogger struct {
 func createSlogLogger(opts Options) (Logger, error) {
 	// Validate configuration
 	if err := validateOptions(opts); err != nil {
-		return nil, fmt.Errorf("invalid options: %w", err)
+		return nil, errors.Wrap(err, errors.ErrCodeValidation, "invalid options")
 	}
 
 	// Parse log level
@@ -181,31 +182,31 @@ func (l *slogLogger) FromContext(ctx context.Context) Logger {
 func (l *slogLogger) DebugCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
-	l.FromContext(ctx).(*slogLogger).logger.DebugContext(ctx, msg, attrsToArgs(attrs)...)
+	l.FromContext(ctx).(*slogLogger).logger.DebugContext(ctx, msg, attrsToArgs(attrs)...) //nolint:forcetypeassert // FromContext returns *slogLogger
 }
 
 func (l *slogLogger) InfoCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
-	l.FromContext(ctx).(*slogLogger).logger.InfoContext(ctx, msg, attrsToArgs(attrs)...)
+	l.FromContext(ctx).(*slogLogger).logger.InfoContext(ctx, msg, attrsToArgs(attrs)...) //nolint:forcetypeassert // FromContext returns *slogLogger
 }
 
 func (l *slogLogger) WarnCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
-	l.FromContext(ctx).(*slogLogger).logger.WarnContext(ctx, msg, attrsToArgs(attrs)...)
+	l.FromContext(ctx).(*slogLogger).logger.WarnContext(ctx, msg, attrsToArgs(attrs)...) //nolint:forcetypeassert // FromContext returns *slogLogger
 }
 
 func (l *slogLogger) ErrorCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
-	l.FromContext(ctx).(*slogLogger).logger.ErrorContext(ctx, msg, attrsToArgs(attrs)...)
+	l.FromContext(ctx).(*slogLogger).logger.ErrorContext(ctx, msg, attrsToArgs(attrs)...) //nolint:forcetypeassert // FromContext returns *slogLogger
 }
 
 func (l *slogLogger) FatalCtx(ctx context.Context, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
-	l.FromContext(ctx).(*slogLogger).logger.ErrorContext(ctx, msg, attrsToArgs(attrs)...)
+	l.FromContext(ctx).(*slogLogger).logger.ErrorContext(ctx, msg, attrsToArgs(attrs)...) //nolint:forcetypeassert // FromContext returns *slogLogger
 	// slog doesn't have fatal, so we exit after logging
 	os.Exit(1)
 }
@@ -216,11 +217,15 @@ func (l *slogLogger) logErrorInternal(ctx context.Context, err error, msg string
 	attrs := convertArgsToAttrs(filteredArgs...)
 	var logger *slog.Logger
 	if ctx != nil {
-		logger = l.FromContext(ctx).(*slogLogger).logger
+		logger = l.FromContext(ctx).(*slogLogger).logger //nolint:forcetypeassert // FromContext returns *slogLogger
 	} else {
 		logger = l.logger
 	}
-	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
+	stack := fmt.Sprintf("%+v", err)
+	if appErr, ok := err.(*errors.Error); ok {
+		stack = appErr.StackTrace()
+	}
+	extraFields := []any{"error", err, "stack", stack}
 	if appErr, ok := err.(*errors.Error); ok {
 		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
 		for k, v := range appErr.Metadata() {

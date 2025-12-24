@@ -33,9 +33,10 @@ package logger
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync"
+
+	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 )
 
 // Level represents log severity levels
@@ -148,7 +149,7 @@ func (f *Factory) Create(impl string) (Logger, error) {
 	case "zap":
 		return newZapLogger(f.opts), nil
 	default:
-		return nil, fmt.Errorf("unknown implementation: %s", impl)
+		return nil, errors.New(errors.ErrCodeInvalidInput, "unknown implementation: "+impl)
 	}
 }
 
