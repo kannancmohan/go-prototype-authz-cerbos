@@ -794,7 +794,7 @@ func TestSamplingHandler(t *testing.T) {
 	}
 
 	// Log 10 identical messages
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		logger.Info("Sampled message", "iteration", i)
 	}
 

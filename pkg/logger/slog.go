@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -108,12 +109,7 @@ func (l *slogLogger) isPIIField(key string) bool {
 		piiFields = []string{"password", "ssn", "credit_card", "email", "phone", "address"}
 	}
 
-	for _, pii := range piiFields {
-		if key == pii {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(piiFields, key)
 }
 
 // filterPII removes PII fields from log arguments

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -110,12 +111,7 @@ func (l *zerologLogger) isPIIField(key string) bool {
 		piiFields = []string{"password", "ssn", "credit_card", "email", "phone", "address"}
 	}
 
-	for _, pii := range piiFields {
-		if key == pii {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(piiFields, key)
 }
 
 // filterPII removes PII fields from log arguments

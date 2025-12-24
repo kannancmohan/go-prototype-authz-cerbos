@@ -194,9 +194,7 @@ func Wrap(err error, code ErrorCode, message string) *Error {
 func (e *Error) WithMetadata(key string, value any) *Error {
 	// Create a copy to maintain immutability
 	meta := make(map[string]any, len(e.meta)+1)
-	for k, v := range e.meta {
-		meta[k] = v
-	}
+	maps.Copy(meta, e.meta)
 	meta[key] = value
 
 	return &Error{
@@ -212,12 +210,8 @@ func (e *Error) WithMetadata(key string, value any) *Error {
 func (e *Error) WithMetadataMap(metadata map[string]any) *Error {
 	// Create a copy to maintain immutability
 	newMeta := make(map[string]any, len(e.meta)+len(metadata))
-	for k, v := range e.meta {
-		newMeta[k] = v
-	}
-	for k, v := range metadata {
-		newMeta[k] = v
-	}
+	maps.Copy(newMeta, e.meta)
+	maps.Copy(newMeta, metadata)
 
 	return &Error{
 		Code:     e.Code,

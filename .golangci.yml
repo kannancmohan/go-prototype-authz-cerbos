@@ -94,6 +94,7 @@ linters:
     - tparallel # Test parallel
     - usestdlibvars # Stdlib variables
     - wrapcheck # Error wrapping
+    - modernize # Modern Go simplifications
     # - wsl_v5 # Whitespace linter
 
     # Additional
