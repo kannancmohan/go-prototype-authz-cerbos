@@ -25,15 +25,15 @@ func (c *captureOutput) Write(p []byte) (n int, err error) {
 
 // logEntry represents a parsed log entry for validation
 type logEntry struct {
-	Level   string                 `json:"level"`
-	Message string                 `json:"message"`
-	Msg     string                 `json:"msg"` // slog uses "msg" instead of "message"
-	Time    string                 `json:"time"`
-	TraceID string                 `json:"trace_id,omitempty"`
-	SpanID  string                 `json:"span_id,omitempty"`
-	Error   string                 `json:"error,omitempty"`
-	Stack   string                 `json:"stack,omitempty"`
-	Fields  map[string]interface{} `json:"-"`
+	Level   string         `json:"level"`
+	Message string         `json:"message"`
+	Msg     string         `json:"msg"` // slog uses "msg" instead of "message"
+	Time    string         `json:"time"`
+	TraceID string         `json:"trace_id,omitempty"`
+	SpanID  string         `json:"span_id,omitempty"`
+	Error   string         `json:"error,omitempty"`
+	Stack   string         `json:"stack,omitempty"`
+	Fields  map[string]any `json:"-"`
 }
 
 // parseLogEntry parses a JSON log line into a logEntry
@@ -44,7 +44,7 @@ func parseLogEntry(line string) (*logEntry, error) {
 	}
 
 	// Extract all fields into Fields map
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.Unmarshal([]byte(line), &raw); err != nil {
 		return nil, err
 	}

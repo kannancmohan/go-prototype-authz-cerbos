@@ -33,7 +33,7 @@ func (e *Error) Log(log logger.Logger) *Error {
 }
 
 // LogCtx logs the error with context using the provided logger and returns the error for method chaining
-func (e *Error) LogCtx(ctx interface{}, log logger.Logger) *Error {
+func (e *Error) LogCtx(ctx any, log logger.Logger) *Error {
 	if log == nil {
 		return e
 	}
@@ -63,7 +63,7 @@ func LogError(log logger.Logger, err error, msg string, args ...any) {
 }
 
 // LogErrorCtx logs an error with context and automatic metadata extraction
-func LogErrorCtx(ctx interface{}, log logger.Logger, err error, msg string, args ...any) {
+func LogErrorCtx(ctx any, log logger.Logger, err error, msg string, args ...any) {
 	if log == nil {
 		return
 	}
@@ -140,7 +140,7 @@ func (e *Error) String() string {
 }
 
 // logWithContext logs the error with context-aware methods if available
-func (e *Error) logWithContext(ctx interface{}, log logger.Logger, fields []any) {
+func (e *Error) logWithContext(ctx any, log logger.Logger, fields []any) {
 	if ctx == nil {
 		e.logWithoutContext(log, fields)
 		return

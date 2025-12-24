@@ -344,7 +344,7 @@ Explain "why", not "what":
 // Good: Explains why
 // Using sync.Pool to reduce GC pressure
 var bufferPool = sync.Pool{
-    New: func() interface{} {
+    New: func() any {
         return make([]byte, 0, 1024)
     },
 }
@@ -410,7 +410,7 @@ func generateToken() (string, error) {
 
 ```go
 var responseBufferPool = sync.Pool{
-    New: func() interface{} {
+    New: func() any {
         return new(bytes.Buffer)
     },
 }
