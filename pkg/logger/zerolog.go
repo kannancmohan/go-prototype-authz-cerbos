@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -185,21 +186,31 @@ func (l *zerologLogger) FatalCtx(ctx context.Context, msg string, args ...any) {
 // ErrorCtxWithErr logs an error with stack trace and additional fields (context-aware)
 func (l *zerologLogger) ErrorCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.FromContext(ctx).(*zerologLogger).logger.Error().
-		Err(err).
-		Stack().
-		Fields(filteredArgs).
-		Msg(msg)
+	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Error().Err(err).Stack()
+	// If it's a structured error, add metadata, code, and severity
+	if appErr, ok := err.(*errors.Error); ok {
+		logEvent = logEvent.Str("error_code", string(appErr.Code)).
+			Str("severity", string(appErr.Severity))
+		for k, v := range appErr.Metadata() {
+			logEvent = logEvent.Interface(k, v)
+		}
+	}
+	logEvent.Fields(filteredArgs).Msg(msg)
 }
 
 // FatalCtxWithErr logs a fatal error with stack trace and additional fields (context-aware)
 func (l *zerologLogger) FatalCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.FromContext(ctx).(*zerologLogger).logger.Fatal().
-		Err(err).
-		Stack().
-		Fields(filteredArgs).
-		Msg(msg)
+	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Fatal().Err(err).Stack()
+	// If it's a structured error, add metadata, code, and severity
+	if appErr, ok := err.(*errors.Error); ok {
+		logEvent = logEvent.Str("error_code", string(appErr.Code)).
+			Str("severity", string(appErr.Severity))
+		for k, v := range appErr.Metadata() {
+			logEvent = logEvent.Interface(k, v)
+		}
+	}
+	logEvent.Fields(filteredArgs).Msg(msg)
 }
 
 // Standard logging methods (context-free)
@@ -231,21 +242,31 @@ func (l *zerologLogger) Fatal(msg string, args ...any) {
 // ErrorWithErr logs an error with stack trace and additional fields (context-free)
 func (l *zerologLogger) ErrorWithErr(err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.logger.Error().
-		Err(err).
-		Stack().
-		Fields(filteredArgs).
-		Msg(msg)
+	logEvent := l.logger.Error().Err(err).Stack()
+	// If it's a structured error, add metadata, code, and severity
+	if appErr, ok := err.(*errors.Error); ok {
+		logEvent = logEvent.Str("error_code", string(appErr.Code)).
+			Str("severity", string(appErr.Severity))
+		for k, v := range appErr.Metadata() {
+			logEvent = logEvent.Interface(k, v)
+		}
+	}
+	logEvent.Fields(filteredArgs).Msg(msg)
 }
 
 // FatalWithErr logs a fatal error with stack trace and additional fields (context-free)
 func (l *zerologLogger) FatalWithErr(err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
-	l.logger.Fatal().
-		Err(err).
-		Stack().
-		Fields(filteredArgs).
-		Msg(msg)
+	logEvent := l.logger.Fatal().Err(err).Stack()
+	// If it's a structured error, add metadata, code, and severity
+	if appErr, ok := err.(*errors.Error); ok {
+		logEvent = logEvent.Str("error_code", string(appErr.Code)).
+			Str("severity", string(appErr.Severity))
+		for k, v := range appErr.Metadata() {
+			logEvent = logEvent.Interface(k, v)
+		}
+	}
+	logEvent.Fields(filteredArgs).Msg(msg)
 }
 
 // With creates child logger with additional fields

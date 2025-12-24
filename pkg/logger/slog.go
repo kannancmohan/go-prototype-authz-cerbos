@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -214,7 +215,15 @@ func (l *slogLogger) ErrorCtxWithErr(ctx context.Context, err error, msg string,
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
 	logger := l.FromContext(ctx).(*slogLogger).logger
-	logger.ErrorContext(ctx, msg, append([]any{"error", err, "stack", fmt.Sprintf("%+v", err)}, attrsToArgs(attrs)...)...)
+	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
+	// If it's a structured error, add metadata, code, and severity
+	if appErr, ok := err.(*errors.Error); ok {
+		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
+		for k, v := range appErr.Metadata() {
+			extraFields = append(extraFields, k, v)
+		}
+	}
+	logger.ErrorContext(ctx, msg, append(extraFields, attrsToArgs(attrs)...)...)
 }
 
 // FatalCtxWithErr logs a fatal error with stack trace and additional fields (context-aware)
@@ -222,7 +231,15 @@ func (l *slogLogger) FatalCtxWithErr(ctx context.Context, err error, msg string,
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
 	logger := l.FromContext(ctx).(*slogLogger).logger
-	logger.ErrorContext(ctx, msg, append([]any{"error", err, "stack", fmt.Sprintf("%+v", err)}, attrsToArgs(attrs)...)...)
+	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
+	// If it's a structured error, add metadata, code, and severity
+	if appErr, ok := err.(*errors.Error); ok {
+		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
+		for k, v := range appErr.Metadata() {
+			extraFields = append(extraFields, k, v)
+		}
+	}
+	logger.ErrorContext(ctx, msg, append(extraFields, attrsToArgs(attrs)...)...)
 	// slog doesn't have fatal, so we exit after logging
 	os.Exit(1)
 }
@@ -264,14 +281,30 @@ func (l *slogLogger) Fatal(msg string, args ...any) {
 func (l *slogLogger) ErrorWithErr(err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
-	l.logger.Error(msg, append([]any{"error", err, "stack", fmt.Sprintf("%+v", err)}, attrsToArgs(attrs)...)...)
+	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
+	// If it's a structured error, add metadata, code, and severity
+	if appErr, ok := err.(*errors.Error); ok {
+		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
+		for k, v := range appErr.Metadata() {
+			extraFields = append(extraFields, k, v)
+		}
+	}
+	l.logger.Error(msg, append(extraFields, attrsToArgs(attrs)...)...)
 }
 
 // FatalWithErr logs a fatal error with stack trace and additional fields (context-free)
 func (l *slogLogger) FatalWithErr(err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	attrs := convertArgsToAttrs(filteredArgs...)
-	l.logger.Error(msg, append([]any{"error", err, "stack", fmt.Sprintf("%+v", err)}, attrsToArgs(attrs)...)...)
+	extraFields := []any{"error", err, "stack", fmt.Sprintf("%+v", err)}
+	// If it's a structured error, add metadata, code, and severity
+	if appErr, ok := err.(*errors.Error); ok {
+		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
+		for k, v := range appErr.Metadata() {
+			extraFields = append(extraFields, k, v)
+		}
+	}
+	l.logger.Error(msg, append(extraFields, attrsToArgs(attrs)...)...)
 	// slog doesn't have fatal, so we exit after logging
 	os.Exit(1)
 }

@@ -6,8 +6,6 @@ import (
 	"net/http"
 
 	"github.com/cockroachdb/errors"
-
-	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/logger"
 )
 
 // HTTPErrorResponse represents the JSON structure for HTTP error responses
@@ -38,38 +36,6 @@ func extractMetadata(appErr *Error) (traceID, spanID, requestID string) {
 	}
 
 	return traceID, spanID, requestID
-}
-
-// handlePanicRecovery handles panic recovery and converts it to an error response
-func handlePanicRecovery(rec any, w http.ResponseWriter, r *http.Request, log logger.Logger) {
-	// Convert panic to error
-	var err error
-	switch val := rec.(type) {
-	case error:
-		err = val
-	case string:
-		err = InternalError(val, nil)
-	default:
-		err = InternalError(fmt.Sprintf("%v", val), nil)
-	}
-
-	// Add request context to the error
-	var appErr *Error
-	if errors.As(err, &appErr) {
-		err = appErr.WithContext(r.Context())
-	}
-
-	// Log the error
-	if errors.As(err, &appErr) {
-		if log != nil {
-			_ = appErr.LogCtx(r.Context(), log)
-		} else {
-			_ = appErr.Log(nil)
-		}
-	}
-
-	// Write error response
-	WriteHTTPResponse(w, err)
 }
 
 // WriteHTTPResponse writes an error as a JSON HTTP response with the appropriate status code
@@ -184,76 +150,6 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// RecoveryMiddleware creates an HTTP middleware that recovers from panics and converts them to errors
-func RecoveryMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if rec := recover(); rec != nil {
-				handlePanicRecovery(rec, w, r, nil)
-			}
-		}()
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// getErrorForStatusCode returns an appropriate error for the given HTTP status code
-func getErrorForStatusCode(statusCode int) error {
-	switch statusCode {
-	case http.StatusNotFound:
-		return NotFoundError("resource")
-	case http.StatusUnauthorized:
-		return AuthError("unauthorized")
-	case http.StatusForbidden:
-		return ForbiddenError("forbidden")
-	case http.StatusBadRequest:
-		return ValidationError("bad request")
-	default:
-		return InternalError(fmt.Sprintf("HTTP %d", statusCode), nil)
-	}
-}
-
-// CombinedMiddleware creates a combined middleware with error recovery and handling
-func CombinedMiddleware(log logger.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Create a custom response writer to capture status code and body
-			crw := &captureResponseWriter{
-				ResponseWriter: w,
-				statusCode:     http.StatusOK,
-			}
-
-			//nolint:contextcheck // defer function correctly accesses context via r.Context()
-			defer func() {
-				if rec := recover(); rec != nil {
-					handlePanicRecovery(rec, w, r, log)
-					return
-				}
-
-				// If no panic occurred but we have an error status with no body,
-				// we might want to add default error handling
-				if crw.statusCode >= 400 && crw.bodyWritten == 0 {
-					err := getErrorForStatusCode(crw.statusCode)
-
-					// Add request context
-					var appErr *Error
-					if errors.As(err, &appErr) {
-						err = appErr.WithContext(r.Context())
-					}
-
-					// Log and write response
-					if errors.As(err, &appErr) {
-						_ = appErr.LogCtx(r.Context(), log)
-					}
-					WriteHTTPResponse(w, err)
-				}
-			}()
-
-			next.ServeHTTP(crw, r)
-		})
-	}
-}
-
 // captureResponseWriter wraps http.ResponseWriter to capture status code and body size
 type captureResponseWriter struct {
 	http.ResponseWriter
@@ -276,27 +172,6 @@ func (crw *captureResponseWriter) Write(b []byte) (int, error) {
 	}
 
 	return size, nil
-}
-
-// ErrorHandler is a convenience function to handle errors in HTTP handlers
-func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
-	if err == nil {
-		return
-	}
-
-	// Add request context to the error
-	var appErr *Error
-	if errors.As(err, &appErr) {
-		err = appErr.WithContext(r.Context())
-	}
-
-	// Log the error
-	if errors.As(err, &appErr) {
-		_ = appErr.LogCtx(r.Context(), nil) // Logger will be injected
-	}
-
-	// Write error response
-	WriteHTTPResponse(w, err)
 }
 
 // JSONError creates a properly formatted JSON error response
