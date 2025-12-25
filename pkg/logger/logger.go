@@ -41,6 +41,7 @@ import (
 // Level represents log severity levels
 type Level int
 
+// Log levels defined as constants.
 const (
 	DebugLevel Level = iota
 	InfoLevel

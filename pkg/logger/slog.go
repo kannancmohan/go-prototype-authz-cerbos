@@ -22,7 +22,7 @@ type slogLogger struct {
 }
 
 // createSlogLogger creates a new slog logger with comprehensive configuration support
-func createSlogLogger(opts *Options) (Logger, error) {
+func createSlogLogger(opts *Options) (Logger, error) { //nolint:maintidx // factory function with necessary complexity
 	// Validate configuration
 	if err := validateOptions(opts); err != nil {
 		return nil, errors.Wrap(err, errors.ErrCodeValidation, "invalid options")
@@ -291,12 +291,12 @@ func (l *slogLogger) Fatal(msg string, args ...any) {
 
 // ErrorWithErr logs an error with stack trace and additional fields (context-free)
 func (l *slogLogger) ErrorWithErr(err error, msg string, args ...any) {
-	l.logErrorInternal(nil, err, msg, args...)
+	l.logErrorInternal(nil, err, msg, args...) //nolint:staticcheck // nil context is intentional for non-context logging
 }
 
 // FatalWithErr logs a fatal error with stack trace and additional fields (context-free)
 func (l *slogLogger) FatalWithErr(err error, msg string, args ...any) {
-	l.logErrorInternal(nil, err, msg, args...)
+	l.logErrorInternal(nil, err, msg, args...) //nolint:staticcheck // nil context is intentional for non-context logging
 	// slog doesn't have fatal, so we exit after logging
 	os.Exit(1)
 }
@@ -351,7 +351,11 @@ func (h *samplingHandler) Handle(ctx context.Context, r slog.Record) error { //n
 	h.mu.Unlock()
 
 	if count <= h.initial || (count-h.initial)%h.thereafter == 0 {
-		return h.handler.Handle(ctx, r)
+		if err := h.handler.Handle(ctx, r); err != nil {
+			return errors.Wrap(err, errors.ErrCodeInternal, "sampling handler failed")
+		}
+
+		return nil
 	}
 
 	return nil

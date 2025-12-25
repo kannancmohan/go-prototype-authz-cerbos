@@ -305,6 +305,6 @@ func AsError(err error) (*Error, bool) {
 	if errors.As(err, &e) {
 		return e, true
 	}
-	
+
 	return nil, false
 }

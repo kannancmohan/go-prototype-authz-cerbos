@@ -21,7 +21,7 @@ type zerologLogger struct {
 }
 
 // createZerologLogger creates a new zerolog logger with comprehensive configuration support
-func createZerologLogger(opts *Options) (Logger, error) {
+func createZerologLogger(opts *Options) (Logger, error) { //nolint:maintidx // factory function with necessary complexity
 	// Validate configuration
 	if err := validateOptions(opts); err != nil {
 		return nil, errors.Wrap(err, errors.ErrCodeValidation, "invalid options")
@@ -74,9 +74,9 @@ func createZerologLogger(opts *Options) (Logger, error) {
 	// Apply sampling for high-volume scenarios
 	if opts.Sampling != nil {
 		zl = zl.Sample(&zerolog.BurstSampler{
-			Burst:       uint32(opts.Sampling.Initial),                              // Log first N messages
+			Burst:       uint32(opts.Sampling.Initial),                              //nolint:gosec // validation ensures non‑negative and within safe bounds
 			Period:      0,                                                          // Reset burst counter immediately
-			NextSampler: &zerolog.BasicSampler{N: uint32(opts.Sampling.Thereafter)}, // Then every Mth
+			NextSampler: &zerolog.BasicSampler{N: uint32(opts.Sampling.Thereafter)}, //nolint:gosec // validation ensures positive and within safe bounds
 		})
 	}
 
