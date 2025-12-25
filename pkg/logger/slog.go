@@ -55,6 +55,12 @@ func createSlogLogger(opts *Options) (Logger, error) { //nolint:maintidx // fact
 		output = os.Stdout
 	}
 
+	// Determine time format
+	timeFormat := opts.TimeFormat
+	if timeFormat == "" {
+		timeFormat = DefaultTimeFormat
+	}
+
 	switch opts.Format {
 	case "console":
 		// Human-readable console output
@@ -66,7 +72,7 @@ func createSlogLogger(opts *Options) (Logger, error) { //nolint:maintidx // fact
 				if a.Key == slog.TimeKey {
 					return slog.Attr{
 						Key:   a.Key,
-						Value: slog.StringValue(time.Now().Format(time.RFC3339)),
+						Value: slog.StringValue(time.Now().Format(timeFormat)),
 					}
 				}
 
@@ -105,14 +111,8 @@ func createSlogLogger(opts *Options) (Logger, error) { //nolint:maintidx // fact
 
 // isPIIField checks if a field contains personally identifiable information
 func (l *slogLogger) isPIIField(key string) bool {
-	// Use custom PII fields from options, or default to common PII fields
-	piiFields := l.opts.PIIFields
-	if len(piiFields) == 0 {
-		// Default PII fields if none specified
-		piiFields = []string{"password", "ssn", "credit_card", "email", "phone", "address"}
-	}
-
-	return slices.Contains(piiFields, key)
+	// Use only explicitly configured PII fields
+	return slices.Contains(l.opts.PIIFields, key)
 }
 
 // filterPII removes PII fields from log arguments
@@ -163,11 +163,24 @@ func (l *slogLogger) FromContext(ctx context.Context) Logger {
 
 	// Extract OpenTelemetry trace/span IDs
 	if l.opts.ExtractTraceInfo {
-		if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
-			newLogger = newLogger.With(
-				"trace_id", span.SpanContext().TraceID().String(),
-				"span_id", span.SpanContext().SpanID().String(),
-			)
+		span := trace.SpanFromContext(ctx)
+		if span.SpanContext().IsValid() {
+			traceKey := l.opts.TraceIDFieldKey
+			spanKey := l.opts.SpanIDFieldKey
+			// Only include trace/span IDs if field keys are explicitly set
+			hasTrace := traceKey != ""
+			hasSpan := spanKey != ""
+			switch {
+			case hasTrace && hasSpan:
+				newLogger = newLogger.With(
+					traceKey, span.SpanContext().TraceID().String(),
+					spanKey, span.SpanContext().SpanID().String(),
+				)
+			case hasTrace:
+				newLogger = newLogger.With(traceKey, span.SpanContext().TraceID().String())
+			case hasSpan:
+				newLogger = newLogger.With(spanKey, span.SpanContext().SpanID().String())
+			}
 		}
 	}
 
@@ -230,9 +243,21 @@ func (l *slogLogger) logErrorInternal(ctx context.Context, err error, msg string
 		appErr = e
 		stack = appErr.StackTrace()
 	}
-	extraFields := []any{"error", err, "stack", stack}
+	// Determine field keys, only include fields whose keys are explicitly set
+	extraFields := []any{}
+	if key := l.opts.ErrorFieldKey; key != "" {
+		extraFields = append(extraFields, key, err)
+	}
+	if key := l.opts.StackTraceFieldKey; key != "" {
+		extraFields = append(extraFields, key, stack)
+	}
 	if appErr != nil {
-		extraFields = append(extraFields, "error_code", appErr.Code, "severity", appErr.Severity)
+		if key := l.opts.ErrorCodeFieldKey; key != "" {
+			extraFields = append(extraFields, key, appErr.Code)
+		}
+		if key := l.opts.SeverityFieldKey; key != "" {
+			extraFields = append(extraFields, key, appErr.Severity)
+		}
 		for k, v := range appErr.Metadata() {
 			extraFields = append(extraFields, k, v)
 		}

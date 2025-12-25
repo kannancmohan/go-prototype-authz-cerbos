@@ -59,6 +59,34 @@ const (
 	LevelFatal = "fatal"
 )
 
+// Default values for logger configuration
+const (
+	// DefaultTimeFormat is the default time format used in logs
+	DefaultTimeFormat = "2006-01-02T15:04:05Z07:00" // time.RFC3339
+	// DefaultErrorFieldKey is the default key for error field
+	DefaultErrorFieldKey = "error"
+	// DefaultStackTraceFieldKey is the default key for stack trace field
+	DefaultStackTraceFieldKey = "stack"
+	// DefaultErrorCodeFieldKey is the default key for error code field
+	DefaultErrorCodeFieldKey = "error_code"
+	// DefaultSeverityFieldKey is the default key for severity field
+	DefaultSeverityFieldKey = "severity"
+	// DefaultTraceIDFieldKey is the default key for trace ID field
+	DefaultTraceIDFieldKey = "trace_id"
+	// DefaultSpanIDFieldKey is the default key for span ID field
+	DefaultSpanIDFieldKey = "span_id"
+)
+
+// DefaultPIIFields are the default personally identifiable information fields
+var DefaultPIIFields = []string{ //nolint:gochecknoglobals // global defaults are acceptable for configuration
+	"password",
+	"ssn",
+	"credit_card",
+	"email",
+	"phone",
+	"address",
+}
+
 // argsPerAttr defines the number of arguments per attribute in key-value logging.
 // Each attribute consists of a key and a value, hence 2.
 const argsPerAttr = 2
@@ -122,14 +150,46 @@ type Logger interface {
 // log level, output format, context keys for extraction, and
 // GDPR compliance features.
 type Options struct {
-	Level            string          // "debug", "info", "warn", "error"
-	Format           string          // "json", "console"
-	ContextKeys      []string        // Keys to extract from context
-	ExtractTraceInfo bool            // Auto-extract OTel trace/span IDs
-	Sampling         *SamplingConfig // Log sampling for high volume
-	GDPRFilterPII    bool            // Filter PII fields for GDPR compliance
-	PIIFields        []string        // Custom PII fields to filter (e.g., "password", "ssn", "email")
-	Output           io.Writer       // Custom output writer (defaults to os.Stdout if nil)
+	Level              string          // "debug", "info", "warn", "error"
+	Format             string          // "json", "console"
+	ContextKeys        []string        // Keys to extract from context
+	ExtractTraceInfo   bool            // Auto-extract OTel trace/span IDs
+	Sampling           *SamplingConfig // Log sampling for high volume
+	GDPRFilterPII      bool            // Filter PII fields for GDPR compliance
+	PIIFields          []string        // Custom PII fields to filter (e.g., "password", "ssn", "email")
+	DefaultPIIFields   []string        // Default PII fields used when PIIFields is empty (optional)
+	TimeFormat         string          // Time format for logs (default: time.RFC3339)
+	ConsoleNoColor     bool            // Disable colors in console output (default: false)
+	ErrorFieldKey      string          // Field key for error (default: "error")
+	StackTraceFieldKey string          // Field key for stack trace (default: "stack")
+	ErrorCodeFieldKey  string          // Field key for error code (default: "error_code")
+	SeverityFieldKey   string          // Field key for severity (default: "severity")
+	TraceIDFieldKey    string          // Field key for trace ID (default: "trace_id")
+	SpanIDFieldKey     string          // Field key for span ID (default: "span_id")
+	Output             io.Writer       // Custom output writer (defaults to os.Stdout if nil)
+}
+
+// DefaultOptions returns an Options struct populated with default values.
+func DefaultOptions() Options {
+	return Options{
+		Level:              LevelInfo,
+		Format:             "json",
+		ContextKeys:        nil,
+		ExtractTraceInfo:   false,
+		Sampling:           nil,
+		GDPRFilterPII:      false,
+		PIIFields:          nil,
+		DefaultPIIFields:   DefaultPIIFields,
+		TimeFormat:         DefaultTimeFormat,
+		ConsoleNoColor:     false,
+		ErrorFieldKey:      DefaultErrorFieldKey,
+		StackTraceFieldKey: DefaultStackTraceFieldKey,
+		ErrorCodeFieldKey:  DefaultErrorCodeFieldKey,
+		SeverityFieldKey:   DefaultSeverityFieldKey,
+		TraceIDFieldKey:    DefaultTraceIDFieldKey,
+		SpanIDFieldKey:     DefaultSpanIDFieldKey,
+		Output:             nil,
+	}
 }
 
 // SamplingConfig prevents log spam in high-volume scenarios by

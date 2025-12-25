@@ -156,9 +156,13 @@ func TestLoggerImplementations(t *testing.T) {
 			name: "Error with stack trace",
 			setupLogger: func(impl string, output *captureOutput) Logger {
 				opts := Options{
-					Level:  "error",
-					Format: "json",
-					Output: output,
+					Level:              "error",
+					Format:             "json",
+					Output:             output,
+					ErrorFieldKey:      "error",
+					StackTraceFieldKey: "stack",
+					ErrorCodeFieldKey:  "error_code",
+					SeverityFieldKey:   "severity",
 				}
 				factory := NewFactory(&opts)
 				logger, err := factory.Create(impl)
@@ -564,9 +568,11 @@ func TestErrorWithErr(t *testing.T) {
 				t.Run(tt.name, func(t *testing.T) {
 					output := newCaptureOutput()
 					opts := Options{
-						Level:  "error",
-						Format: "json",
-						Output: output,
+						Level:              "error",
+						Format:             "json",
+						Output:             output,
+						ErrorFieldKey:      "error",
+						StackTraceFieldKey: "stack",
 					}
 					factory := NewFactory(&opts)
 					logger, err := factory.Create(impl)

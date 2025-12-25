@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"slices"
-	"time"
 
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/trace"
@@ -47,13 +46,20 @@ func createZerologLogger(opts *Options) (Logger, error) { //nolint:maintidx // f
 		output = os.Stdout
 	}
 
+	// Determine time format and console color settings
+	timeFormat := opts.TimeFormat
+	if timeFormat == "" {
+		timeFormat = DefaultTimeFormat
+	}
+	noColor := opts.ConsoleNoColor
+
 	switch opts.Format {
 	case "console":
 		// Human-readable console output with colors and formatting
 		output = zerolog.ConsoleWriter{
 			Out:        output,
-			TimeFormat: time.RFC3339,
-			NoColor:    false,
+			TimeFormat: timeFormat,
+			NoColor:    noColor,
 		}
 	case "json":
 		// Structured JSON output (zerolog's default format)
@@ -106,14 +112,8 @@ func validateOptions(opts *Options) error {
 
 // isPIIField checks if a field contains personally identifiable information
 func (l *zerologLogger) isPIIField(key string) bool {
-	// Use custom PII fields from options, or default to common PII fields
-	piiFields := l.opts.PIIFields
-	if len(piiFields) == 0 {
-		// Default PII fields if none specified
-		piiFields = []string{"password", "ssn", "credit_card", "email", "phone", "address"}
-	}
-
-	return slices.Contains(piiFields, key)
+	// Use only explicitly configured PII fields
+	return slices.Contains(l.opts.PIIFields, key)
 }
 
 // filterPII removes PII fields from log arguments
@@ -135,19 +135,51 @@ func (l *zerologLogger) filterPII(args ...any) []any {
 	return filtered
 }
 
-// FromContext extracts values from context and returns enriched logger
-func (l *zerologLogger) FromContext(ctx context.Context) Logger {
-	newLogger := l.logger
-
-	// Extract OpenTelemetry trace/span IDs
-	if l.opts.ExtractTraceInfo {
-		if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
-			newLogger = newLogger.With().
-				Str("trace_id", span.SpanContext().TraceID().String()).
-				Str("span_id", span.SpanContext().SpanID().String()).
-				Logger()
+// enrichLogEvent adds structured error metadata to a log event if the error is a structured error.
+func (l *zerologLogger) enrichLogEvent(logEvent *zerolog.Event, err error) *zerolog.Event {
+	if appErr, ok := errors.AsError(err); ok {
+		if key := l.opts.ErrorCodeFieldKey; key != "" {
+			logEvent = logEvent.Str(key, string(appErr.Code))
+		}
+		if key := l.opts.SeverityFieldKey; key != "" {
+			logEvent = logEvent.Str(key, string(appErr.Severity))
+		}
+		for k, v := range appErr.Metadata() {
+			logEvent = logEvent.Interface(k, v)
 		}
 	}
+
+	return logEvent
+}
+
+// addTraceSpanFields adds OpenTelemetry trace/span IDs to the logger if configured.
+func addTraceSpanFields(logger *zerolog.Logger, ctx context.Context, opts *Options) zerolog.Logger {
+	if !opts.ExtractTraceInfo {
+		return *logger
+	}
+	span := trace.SpanFromContext(ctx)
+	if !span.SpanContext().IsValid() {
+		return *logger
+	}
+	traceKey := opts.TraceIDFieldKey
+	spanKey := opts.SpanIDFieldKey
+	if traceKey == "" && spanKey == "" {
+		return *logger
+	}
+	builder := logger.With()
+	if traceKey != "" {
+		builder = builder.Str(traceKey, span.SpanContext().TraceID().String())
+	}
+	if spanKey != "" {
+		builder = builder.Str(spanKey, span.SpanContext().SpanID().String())
+	}
+
+	return builder.Logger()
+}
+
+// FromContext extracts values from context and returns enriched logger
+func (l *zerologLogger) FromContext(ctx context.Context) Logger {
+	newLogger := addTraceSpanFields(&l.logger, ctx, &l.opts)
 
 	// Extract configured context keys (e.g., request_id, user_id)
 	for _, key := range l.opts.ContextKeys {
@@ -189,14 +221,7 @@ func (l *zerologLogger) FatalCtx(ctx context.Context, msg string, args ...any) {
 func (l *zerologLogger) ErrorCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Error().Err(err).Stack() //nolint:forcetypeassert // FromContext returns *zerologLogger
-	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := errors.AsError(err); ok {
-		logEvent = logEvent.Str("error_code", string(appErr.Code)).
-			Str("severity", string(appErr.Severity))
-		for k, v := range appErr.Metadata() {
-			logEvent = logEvent.Interface(k, v)
-		}
-	}
+	logEvent = l.enrichLogEvent(logEvent, err)
 	logEvent.Fields(filteredArgs).Msg(msg)
 }
 
@@ -204,14 +229,7 @@ func (l *zerologLogger) ErrorCtxWithErr(ctx context.Context, err error, msg stri
 func (l *zerologLogger) FatalCtxWithErr(ctx context.Context, err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	logEvent := l.FromContext(ctx).(*zerologLogger).logger.Fatal().Err(err).Stack() //nolint:forcetypeassert // FromContext returns *zerologLogger
-	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := errors.AsError(err); ok {
-		logEvent = logEvent.Str("error_code", string(appErr.Code)).
-			Str("severity", string(appErr.Severity))
-		for k, v := range appErr.Metadata() {
-			logEvent = logEvent.Interface(k, v)
-		}
-	}
+	logEvent = l.enrichLogEvent(logEvent, err)
 	logEvent.Fields(filteredArgs).Msg(msg)
 }
 
@@ -245,14 +263,7 @@ func (l *zerologLogger) Fatal(msg string, args ...any) {
 func (l *zerologLogger) ErrorWithErr(err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	logEvent := l.logger.Error().Err(err).Stack()
-	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := errors.AsError(err); ok {
-		logEvent = logEvent.Str("error_code", string(appErr.Code)).
-			Str("severity", string(appErr.Severity))
-		for k, v := range appErr.Metadata() {
-			logEvent = logEvent.Interface(k, v)
-		}
-	}
+	logEvent = l.enrichLogEvent(logEvent, err)
 	logEvent.Fields(filteredArgs).Msg(msg)
 }
 
@@ -260,14 +271,7 @@ func (l *zerologLogger) ErrorWithErr(err error, msg string, args ...any) {
 func (l *zerologLogger) FatalWithErr(err error, msg string, args ...any) {
 	filteredArgs := l.filterPII(args...)
 	logEvent := l.logger.Fatal().Err(err).Stack()
-	// If it's a structured error, add metadata, code, and severity
-	if appErr, ok := errors.AsError(err); ok {
-		logEvent = logEvent.Str("error_code", string(appErr.Code)).
-			Str("severity", string(appErr.Severity))
-		for k, v := range appErr.Metadata() {
-			logEvent = logEvent.Interface(k, v)
-		}
-	}
+	logEvent = l.enrichLogEvent(logEvent, err)
 	logEvent.Fields(filteredArgs).Msg(msg)
 }
 
