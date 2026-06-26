@@ -6,7 +6,10 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +17,45 @@ import (
 
 	"github.com/kannancmohan/go-prototype-authz-cerbos/pkg/errors"
 )
+
+// replaceAttrFunc returns a slog.ReplaceAttr function that converts the standard 'source' struct into a flat 'caller' string
+// to match Zerlog output format (e.g., "cmd/main.go:34").
+func replaceAttrFunc(cwd string, cwdErr error, timeFormat string) func(groups []string, a slog.Attr) slog.Attr {
+	return func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.TimeKey {
+			return slog.Attr{
+				Key:   a.Key,
+				Value: slog.StringValue(time.Now().Format(timeFormat)),
+			}
+		}
+
+		if a.Key == slog.SourceKey {
+			return convertSourceToCaller(a, cwd, cwdErr)
+		}
+
+		return a
+	}
+}
+
+// convertSourceToCaller converts a slog.Source attribute into a flat caller string
+func convertSourceToCaller(a slog.Attr, cwd string, cwdErr error) slog.Attr {
+	src, ok := a.Value.Any().(*slog.Source)
+	if !ok {
+		return a
+	}
+
+	if cwdErr == nil && cwd != "" {
+		if rel, err := filepath.Rel(cwd, src.File); err == nil && !strings.HasPrefix(rel, "../") {
+			src.File = rel
+		} else {
+			src.File = filepath.Base(src.File)
+		}
+	} else {
+		src.File = filepath.Base(src.File)
+	}
+
+	return slog.String("caller", fmt.Sprintf("%s:%d", src.File, src.Line))
+}
 
 // slogLogger implements the Logger interface using slog
 type slogLogger struct {
@@ -26,6 +68,12 @@ func createSlogLogger(opts *Options) (Logger, error) { //nolint:maintidx // fact
 	// Validate configuration
 	if err := validateOptions(opts); err != nil {
 		return nil, errors.Wrap(err, errors.ErrCodeValidation, "invalid options")
+	}
+
+	// Capture CWD for relative paths
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = ""
 	}
 
 	// Parse log level
@@ -65,31 +113,23 @@ func createSlogLogger(opts *Options) (Logger, error) { //nolint:maintidx // fact
 	case "console":
 		// Human-readable console output
 		handler = slog.NewTextHandler(output, &slog.HandlerOptions{
-			Level:     level,
-			AddSource: true,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-				// Customize time format
-				if a.Key == slog.TimeKey {
-					return slog.Attr{
-						Key:   a.Key,
-						Value: slog.StringValue(time.Now().Format(timeFormat)),
-					}
-				}
-
-				return a
-			},
+			Level:       level,
+			AddSource:   true,
+			ReplaceAttr: replaceAttrFunc(cwd, err, timeFormat),
 		})
 	case "json":
 		// Structured JSON output
 		handler = slog.NewJSONHandler(output, &slog.HandlerOptions{
-			Level:     level,
-			AddSource: true,
+			Level:       level,
+			AddSource:   true,
+			ReplaceAttr: replaceAttrFunc(cwd, err, timeFormat),
 		})
 	default:
 		// Fallback to JSON format
 		handler = slog.NewJSONHandler(output, &slog.HandlerOptions{
-			Level:     level,
-			AddSource: true,
+			Level:       level,
+			AddSource:   true,
+			ReplaceAttr: replaceAttrFunc(cwd, err, timeFormat),
 		})
 	}
 
@@ -102,6 +142,9 @@ func createSlogLogger(opts *Options) (Logger, error) { //nolint:maintidx // fact
 			thereafter: opts.Sampling.Thereafter,
 		}
 	}
+
+	// Wrap with caller skip handler to point to application code
+	handler = &callerSkipHandler{handler: handler, skip: slogCallerSkipFrames}
 
 	// Create base logger
 	logger := slog.New(handler)
@@ -350,6 +393,36 @@ func attrsToArgs(attrs []slog.Attr) []any {
 	}
 
 	return args
+}
+
+// callerSkipHandler wraps a handler to skip frames for caller information
+type callerSkipHandler struct {
+	handler slog.Handler
+	skip    int
+}
+
+// Enabled returns true if the handler is enabled for the given level
+func (h *callerSkipHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.handler.Enabled(ctx, level)
+}
+
+// Handle processes the log record with adjusted PC for caller
+func (h *callerSkipHandler) Handle(ctx context.Context, r slog.Record) error { //nolint:gocritic // slog.Handler interface requires value, not pointer
+	pcs := make([]uintptr, 1)
+	runtime.Callers(h.skip, pcs)
+	r.PC = pcs[0]
+
+	return errors.Wrap(h.handler.Handle(ctx, r), errors.ErrCodeInternal, "caller skip handler failed")
+}
+
+// WithAttrs returns a new handler with additional attributes
+func (h *callerSkipHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &callerSkipHandler{handler: h.handler.WithAttrs(attrs), skip: h.skip}
+}
+
+// WithGroup returns a new handler with a group name
+func (h *callerSkipHandler) WithGroup(name string) slog.Handler {
+	return &callerSkipHandler{handler: h.handler.WithGroup(name), skip: h.skip}
 }
 
 // samplingHandler implements sampling for slog by wrapping another handler

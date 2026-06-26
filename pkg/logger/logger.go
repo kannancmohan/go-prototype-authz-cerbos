@@ -91,6 +91,12 @@ var DefaultPIIFields = []string{ //nolint:gochecknoglobals // global defaults ar
 // Each attribute consists of a key and a value, hence 2.
 const argsPerAttr = 2
 
+// slogCallerSkipFrames defines the number of stack frames to skip for slog caller resolution.
+const slogCallerSkipFrames = 5
+
+// zerologCallerSkipFrames defines the number of stack frames to skip for zerolog caller resolution.
+const zerologCallerSkipFrames = 3
+
 // String returns the string representation of the log level
 func (l Level) String() string {
 	switch l {

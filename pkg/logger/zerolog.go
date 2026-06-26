@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/trace"
@@ -24,6 +26,44 @@ func createZerologLogger(opts *Options) (Logger, error) { //nolint:maintidx // f
 	// Validate configuration
 	if err := validateOptions(opts); err != nil {
 		return nil, errors.Wrap(err, errors.ErrCodeValidation, "invalid options")
+	}
+
+	// // Configure caller to use relative paths
+	// zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
+	// 	cwd, err := os.Getwd()
+	// 	if err != nil {
+	// 		return fmt.Sprintf("%s:%d", file, line)
+	// 	}
+	// 	rel, err := filepath.Rel(cwd, file)
+	// 	if err != nil {
+	// 		return fmt.Sprintf("%s:%d", file, line)
+	// 	}
+	// 	return fmt.Sprintf("%s:%d", rel, line)
+	// }
+	// Configure caller to use relative paths
+	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
+		// 1. Get the current working directory
+		cwd, err := os.Getwd()
+		if err != nil {
+			// SECURE FALLBACK: If we can't get CWD, only show the filename
+			return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+		}
+
+		// 2. Calculate the relative path
+		rel, err := filepath.Rel(cwd, file)
+		if err != nil {
+			// SECURE FALLBACK: If calculation fails, only show the filename
+			return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+		}
+
+		// 3. Optional: Strip "../" prefixes if you ran the binary from a subfolder
+		// (e.g. if you are in 'pkg' and logging from 'cmd', Rel returns '../../cmd/main.go')
+		// If you want to force clean 'cmd/main.go' style logs regardless of run directory:
+		if strings.HasPrefix(rel, "../") {
+			return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+		}
+
+		return fmt.Sprintf("%s:%d", rel, line)
 	}
 
 	// Parse log level
@@ -69,12 +109,12 @@ func createZerologLogger(opts *Options) (Logger, error) { //nolint:maintidx // f
 		// output is already set above
 	}
 
-	// Create base logger with timestamp and caller information
+	// Create base logger with timestamp and caller information (skip 3 frames to point to application code)
 	zl := zerolog.New(output).
 		Level(level).
 		With().
 		Timestamp().
-		Caller().
+		CallerWithSkipFrameCount(zerologCallerSkipFrames).
 		Logger()
 
 	// Apply sampling for high-volume scenarios
